@@ -1,16 +1,18 @@
-// server.js aggiornato con MongoDB + JWT
+// server.js aggiornato con MongoDB + JWT e dotenv
 import express from "express";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import cors from "cors";
 import bodyParser from "body-parser";
+import dotenv from "dotenv";
 
-// Configurazioni
+dotenv.config(); // carica variabili da .env
+
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = "supersecretkey"; // sostituire con variabile d'ambiente in produzione
-const MONGO_URI = "mongodb://127.0.0.1:27017/flashcardsapp"; // modifica se usi MongoDB Atlas
+const JWT_SECRET = process.env.JWT_SECRET; // da .env
+const MONGO_URI = process.env.MONGO_URI;   // da .env
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -20,7 +22,7 @@ app.use(express.static("public"));
 const flashcardSchema = new mongoose.Schema({
   question: String,
   answer: String,
-  category: String, // opzionale
+  category: String,
 });
 
 const userSchema = new mongoose.Schema({
@@ -50,7 +52,6 @@ mongoose
   .catch((err) => console.error("Errore connessione MongoDB:", err));
 
 // --- ENDPOINTS ---
-// Test server
 app.get("/", (req, res) => {
   res.sendFile("index.html", { root: "./public" });
 });
