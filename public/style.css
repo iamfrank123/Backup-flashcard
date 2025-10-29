@@ -1,325 +1,140 @@
-:root {
-  --primary: #2563eb;
-  --primary-dark: #1e40af;
-  --bg: #f8fafc;
-  --text: #0f172a;
-  --muted: #64748b;
-  --border: #e2e8f0;
-  --radius: 8px;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+/* style.css - Smart Flashcards App */
+
+/* RESET BASE */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
 }
 
 body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* --- TOPBAR --- */
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 16px;
-  background: white;
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.brand {
-  font-weight: 700;
-  font-size: 18px;
-  color: var(--primary);
-}
-
-.nav {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.hidden { display: none !important; }
-
-/* --- LAYOUT --- */
-.layout {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-.sidebar {
-  width: 220px;
-  background: #fff;
-  border-right: 1px solid var(--border);
-  padding: 10px;
-  overflow-y: auto;
-}
-
-.sidebar h3, .sidebar h4 {
-  margin: 10px 0 6px;
-  font-size: 14px;
-}
-
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.list-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 4px;
-  border-radius: var(--radius);
-  transition: background .2s;
-}
-
-.list-item:hover {
-  background: #f1f5f9;
-}
-
-.list-item .name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.list-item .actions {
-  display: flex;
-  gap: 4px;
-}
-
-/* --- EDITOR --- */
-.editor {
-  flex: 1;
+  background: #f5f5f5;
   padding: 20px;
-  overflow-y: auto;
+  color: #333;
 }
 
-.editor-top {
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+/* FORM LOGIN / REGISTRAZIONE / ADD FLASHCARD */
+form {
+  background: #fff;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+form h2 {
   margin-bottom: 10px;
+  color: #34495e;
 }
 
-.input.title {
-  width: 100%;
-  font-size: 18px;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-bottom: 4px;
-}
-
-.muted { color: var(--muted); font-size: 13px; }
-
-.boxes {
-  display: flex;
-  gap: 12px;
-}
-
-.box {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.box label {
-  font-size: 13px;
-  margin-bottom: 4px;
-}
-
-textarea {
-  width: 100%;
-  min-height: 150px;
-  padding: 10px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  resize: vertical;
-  font-family: inherit;
-}
-
-.controls {
-  margin-top: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.right {
-  display: flex;
-  gap: 8px;
-}
-
-/* --- BUTTONS --- */
-.btn {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 6px 10px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background .2s, color .2s;
-}
-
-.btn:hover {
-  background: #f1f5f9;
-}
-
-.btn.primary {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: white;
-}
-
-.btn.primary:hover {
-  background: var(--primary-dark);
-}
-
-.btn.outline {
-  border-color: var(--primary);
-  color: var(--primary);
-  background: transparent;
-}
-
-.btn.small { font-size: 13px; padding: 5px 8px; }
-.btn.tiny { font-size: 12px; padding: 2px 6px; }
-
-/* --- FLASHCARDS --- */
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.card {
-  perspective: 1000px;
-  cursor: pointer;
-}
-
-.card-inner {
-  width: 100%;
-  height: 100px;
-  position: relative;
-  transition: transform .5s;
-  transform-style: preserve-3d;
-}
-
-.card.flipped .card-inner {
-  transform: rotateY(180deg);
-}
-
-.face {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  backface-visibility: hidden;
-  padding: 10px;
-  font-weight: 600;
-}
-
-.front {
-  background: white;
-}
-
-.back {
-  background: var(--primary);
-  color: white;
-  transform: rotateY(180deg);
-}
-
-/* --- MESSAGES --- */
-.message {
-  margin-top: 10px;
-}
-
-.message .warn {
-  color: #b45309;
-  background: #fff7ed;
-  border: 1px solid #fde68a;
-  padding: 8px;
-  border-radius: var(--radius);
-}
-
-/* --- MODALS --- */
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-content {
-  background: #fff;
-  padding: 20px;
-  border-radius: var(--radius);
-  width: 320px;
-  position: relative;
-  box-shadow: 0 10px 30px rgba(0,0,0,.15);
-}
-
-.modal-close {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: none;
-  border: none;
-  font-size: 22px;
-  cursor: pointer;
-}
-
-.auth-form label {
+form input {
   display: block;
-  font-size: 13px;
-  margin: 8px 0 4px;
-}
-
-.auth-form input {
   width: 100%;
-  padding: 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
 }
 
-.form-actions {
-  text-align: right;
-  margin-top: 12px;
-}
-
-.tab {
-  background: #f1f5f9;
-  border: none;
-  padding: 6px 10px;
-  cursor: pointer;
-  font-size: 13px;
-  border-radius: var(--radius);
-  margin-right: 4px;
-}
-
-.tab.active {
-  background: var(--primary);
+form button {
+  width: 100%;
+  padding: 10px;
+  background: #2980b9;
   color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
 }
 
-/* --- SCROLL --- */
-.sidebar, .editor {
-  scrollbar-width: thin;
+form button:hover {
+  background: #3498db;
 }
 
-.hidden {
-  display: none !important;
+/* LOGOUT BUTTON */
+#logoutBtn {
+  display: block;
+  margin: 10px auto 20px auto;
+  padding: 10px 20px;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+#logoutBtn:hover {
+  background: #c0392b;
+}
+
+/* FLASHCARDS CONTAINER */
+#flashcardsContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* SINGOLA FLASHCARD */
+.flashcard {
+  background: #fff;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  position: relative;
+}
+
+.flashcard strong {
+  display: block;
+  margin-bottom: 10px;
+  color: #2c3e50;
+}
+
+.flashcard p {
+  margin-bottom: 10px;
+  color: #34495e;
+}
+
+.flashcard button {
+  margin-right: 5px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  color: white;
+  font-size: 14px;
+}
+
+.flashcard button:hover {
+  opacity: 0.8;
+}
+
+.flashcard button:nth-child(2) { /* Modifica */
+  background: #f39c12;
+}
+
+.flashcard button:nth-child(3) { /* Elimina */
+  background: #e74c3c;
+}
+
+/* RESPONSIVE MOBILE */
+@media (max-width: 500px) {
+  form {
+    padding: 10px;
+  }
+
+  #flashcardsContainer {
+    grid-template-columns: 1fr;
+  }
 }
