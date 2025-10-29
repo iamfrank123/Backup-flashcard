@@ -1,45 +1,126 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smart Flashcards App</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Flashcards Editor</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Smart Flashcards</h1>
+    <header>
+        <h1>📚 Smart Flashcards Editor</h1>
+        <div id="userArea">
+            <button id="btnLogin">Accedi</button>
+            <button id="btnRegister">Registrati</button>
+        </div>
+        <div id="userMenu" class="hidden">
+            <span id="usernameLabel"></span>
+            <button id="btnLogout">Esci</button>
+        </div>
+    </header>
 
-  <!-- LOGIN FORM -->
-  <form id="loginForm">
-    <h2>Login</h2>
-    <input type="email" name="email" placeholder="Email" required>
-    <input type="password" name="password" placeholder="Password" required>
-    <button type="submit">Accedi</button>
-  </form>
+    <div id="message"></div>
 
-  <!-- REGISTRAZIONE FORM -->
-  <form id="registerForm">
-    <h2>Registrazione</h2>
-    <input type="email" name="email" placeholder="Email" required>
-    <input type="password" name="password" placeholder="Password" required>
-    <button type="submit">Registrati</button>
-  </form>
+    <div id="mainContainer">
+        <aside id="sidebar">
+            <h2>Cartelle</h2>
+            <button id="btnNewFolder">Nuova Cartella</button>
+            <ul id="foldersList">
+                </ul>
 
-  <!-- LOGOUT -->
-  <button id="logoutBtn" onclick="logout()">Logout</button>
+            <hr>
 
-  <!-- AGGIUNGI FLASHCARD -->
-  <form id="addFlashcardForm">
-    <h2>Aggiungi Flashcard</h2>
-    <input type="text" name="question" placeholder="Domanda" required>
-    <input type="text" name="answer" placeholder="Risposta" required>
-    <input type="text" name="category" placeholder="Categoria (opzionale)">
-    <button type="submit">Aggiungi</button>
-  </form>
+            <h2>Liste</h2>
+            <button id="btnNewList">Nuova Lista</button>
+            <ul id="listsList">
+                </ul>
+        </aside>
 
-  <!-- CONTAINER FLASHCARDS -->
-  <div id="flashcardsContainer"></div>
+        <main id="editor">
+            <div class="editor-header">
+                <input type="text" id="listTitle" placeholder="Nome della Lista (es. 'Capitali Europee')">
+                <div class="actions">
+                    <button id="btnSaveList">💾 Salva Lista</button>
+                    <button id="btnExport">Export (.json)</button>
+                    <button id="btnImport">Import (.json)</button>
+                    <input type="file" id="fileImport" accept=".json" class="hidden">
+                </div>
+            </div>
 
-  <script src="script.js" type="module"></script>
+            <div id="textEditor">
+                <div class="text-box">
+                    <h3>Fronte della Carta (Box 1)</h3>
+                    <textarea id="box1" placeholder="1. Domanda 1&#10;2. Domanda 2&#10;..."></textarea>
+                </div>
+                <div class="text-box">
+                    <h3>Retro della Carta (Box 2)</h3>
+                    <textarea id="box2" placeholder="1. Risposta 1&#10;2. Risposta 2&#10;..."></textarea>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="btnGenerate">Genera/Aggiorna Carte</button>
+                <button id="btnPreview">Anteprima Flashcards</button>
+                <button id="btnResetCards">Resetta Anteprima</button>
+                
+                <label class="align-control">
+                    <input type="checkbox" id="alignNumbers">
+                    Allinea per numeri (Mantieni righe vuote)
+                </label>
+            </div>
+
+            <section id="cards"></section>
+        </main>
+    </div>
+
+    <div id="modalAuth" class="modal hidden">
+        <div class="modal-content">
+            <span class="close" data-action="close">&times;</span>
+            <div id="authTabs">
+                <button class="tab active" data-tab="login">Accedi</button>
+                <button class="tab" data-tab="register">Registrati</button>
+            </div>
+
+            <form id="formLogin">
+                <h3>Accesso</h3>
+                <input type="email" id="loginEmail" placeholder="Email" required>
+                <input type="password" id="loginPassword" placeholder="Password" required>
+                <button type="submit">Accedi</button>
+                <p><a href="#" id="btnRecover">Password dimenticata?</a></p>
+            </form>
+
+            <form id="formRegister" class="hidden">
+                <h3>Registrazione</h3>
+                <input type="text" id="regUsername" placeholder="Nome Utente" required>
+                <input type="email" id="regEmail" placeholder="Email" required>
+                <input type="password" id="regPassword" placeholder="Password (min 6 caratteri)" required minlength="6">
+                <button type="submit">Registrati</button>
+            </form>
+        </div>
+    </div>
+
+    <template id="tplFolderItem">
+        <li>
+            <span class="name">Nome Cartella</span>
+            <div class="actions">
+                <button class="rename">✏️</button>
+                <button class="del">🗑️</button>
+            </div>
+        </li>
+    </template>
+
+    <template id="tplListItem">
+        <li>
+            <span class="name">Nome Lista</span>
+            <div class="actions">
+                <button class="open">🔗</button>
+                <button class="rename">✏️</button>
+                <button class="del">🗑️</button>
+            </div>
+        </li>
+    </template>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
