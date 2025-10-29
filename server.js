@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const authRoutes = require('./auth'); // importa il nuovo auth.js
+const authRoutes = require('./auth'); // importa il file auth.js
 
 const app = express();
 const server = http.createServer(app);
@@ -50,13 +50,13 @@ app.get('/auth/reset/:token', (req, res) => {
 });
 
 
-// === USA AUTHROUTES ===
+// === USA AUTH ROUTES ===
 app.use('/auth', authRoutes);
 
-// === NUOVA ROUTE: Dati utente corrente (Usata da script.js) ===
+// === ROUTE: Dati utente corrente (Usata da script.js dopo login) ===
 app.get('/auth/me', auth, (req, res) => {
-    // La funzione 'auth' ha già verificato il token e popolato req.user
-    // Restituiamo i dati essenziali dell'utente dal payload JWT
+    // La funzione 'auth' ha già verificato il token e popolato req.user.
+    // Restituiamo i dati essenziali dell'utente dal payload JWT.
     res.json({ id: req.user.id, email: req.user.email, username: req.user.username });
 });
 
