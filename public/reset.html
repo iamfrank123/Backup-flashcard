@@ -1,60 +1,68 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reset Password — Smart Flashcards</title>
-  <style>
-    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f5f5f5; }
-    .container { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); width: 300px; }
-    input { width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 4px; border: 1px solid #ccc; }
-    button { width: 100%; padding: 0.5rem; border: none; border-radius: 4px; background: #4CAF50; color: white; cursor: pointer; }
-    button:hover { background: #45a049; }
-    .message { margin-top: 1rem; color: red; font-size: 0.9rem; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recupera Password</title>
+    <link rel="stylesheet" href="/style.css"> 
+    <style>
+        /* Stili minimi per il form di reset */
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f4f4f4; }
+        .reset-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); width: 300px; text-align: center; }
+        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; }
+        button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; width: 100%; }
+        .message { margin-top: 15px; font-weight: bold; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Reset Password</h2>
-    <input type="password" id="newPassword" placeholder="Nuova password" minlength="6" />
-    <button id="btnReset">Aggiorna Password</button>
-    <div class="message" id="msg"></div>
-  </div>
+    <div class="reset-container">
+        <h2>Reimposta Password</h2>
+        <form id="resetForm">
+            <input type="password" id="newPassword" placeholder="Nuova Password" required minlength="6">
+            <input type="password" id="confirmPassword" placeholder="Conferma Password" required minlength="6">
+            <button type="submit">Aggiorna Password</button>
+        </form>
+        <p id="message" class="message"></p>
+        <p><a href="/">Torna alla home</a></p>
+    </div>
 
-  <script>
-    const msgEl = document.getElementById('msg');
-    const btnReset = document.getElementById('btnReset');
-    const passwordInput = document.getElementById('newPassword');
+    <script>
+        document.getElementById('resetForm').onsubmit = async function(e) {
+            e.preventDefault();
+            const password = document.getElementById('newPassword').value;
+            const confirm = document.getElementById('confirmPassword').value;
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = '';
+            messageEl.className = 'message';
 
-    // Prendi il token dalla URL
-    const token = window.location.pathname.split('/').pop();
+            if (password !== confirm) {
+                messageEl.textContent = 'Le password non corrispondono.';
+                messageEl.classList.add('error');
+                return;
+            }
+            
+            // Estrae il token dalla URL (es: /auth/reset/TOKEN_QUI)
+            const token = window.location.pathname.split('/').pop();
+            
+            const response = await fetch(`/auth/reset/${token}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password })
+            });
+            
+            const data = await response.json();
 
-    btnReset.addEventListener('click', async () => {
-      const password = passwordInput.value.trim();
-      if (!password || password.length < 6) {
-        msgEl.textContent = "Inserisci una password valida (min 6 caratteri)";
-        return;
-      }
-
-      try {
-        const res = await fetch(`/auth/reset/${token}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          msgEl.style.color = 'green';
-          msgEl.textContent = data.message;
-        } else {
-          msgEl.style.color = 'red';
-          msgEl.textContent = data.error || "Errore durante il reset";
-        }
-      } catch (err) {
-        msgEl.style.color = 'red';
-        msgEl.textContent = "Errore di connessione";
-      }
-    });
-  </script>
+            if (response.ok) {
+                messageEl.textContent = data.message || 'Password reimpostata con successo!';
+                messageEl.classList.add('success');
+                document.getElementById('resetForm').classList.add('hidden');
+            } else {
+                messageEl.textContent = data.error || 'Errore. Il link potrebbe essere scaduto o non valido.';
+                messageEl.classList.add('error');
+            }
+        };
+    </script>
 </body>
 </html>
