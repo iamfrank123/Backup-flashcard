@@ -2,17 +2,17 @@
   "name": "flashcards-generator",
   "version": "1.0.0",
   "description": "Smart Flashcards App",
-  "main": "server.cjs",     <!— CAMBIARE: Puntare al file .cjs -->
-  "type": "commonjs",      <!— CAMBIARE: Forzare CommonJS -->
+  "main": "server.cjs",
+  "type": "commonjs",
   "scripts": {
-    "start": "node server.cjs" <!— CAMBIARE: Puntare al file .cjs -->
+    "start": "node server.cjs"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",   <!— CAMBIARE: Usa bcryptjs, più affidabile -->
+    "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "express": "^4.19.2",  <!— Raccomando 4.x per CommonJS/Express stabile -->
+    "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.3.1",
     "node-mailjet": "^6.0.11",
