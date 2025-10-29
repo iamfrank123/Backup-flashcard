@@ -1,155 +1,144 @@
+const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-
-// ---- MAILJET ----
+const bcrypt = require('bcryptjs');
 const Mailjet = require('node-mailjet');
-const mailjet = Mailjet.apiConnect(
-  'c07a08a60161be9bafcadab355f4dc3f', // API KEY
-  '07a3d302f2a173dd097be3728e4f04ce'  // SECRET KEY
-);
-
-const BASE_URL = 'https://smart-flashcards-app.onrender.com';
-const SENDER_EMAIL = 'smart.flashcards@mail.com';
-const SENDER_NAME = 'Smart Flashcards';
-const JWT_SECRET = 'supersecretkey';
-const JWT_EXPIRE = '2h'; // durata token
 
 const router = express.Router();
-const usersFile = path.join(__dirname,'data','users.json');
 
-// --- Funzioni Mail ---
-async function sendResetEmail(toEmail, token) {
-  const resetUrl = `${BASE_URL}/auth/reset/${token}`;
-  return mailjet.post("send", {'version':'v3.1'}).request({
-    Messages:[{
-      From: { Email: SENDER_EMAIL, Name: SENDER_NAME },
-      To: [{ Email: toEmail }],
-      Subject: "Recupero password — Smart Flashcards",
-      TextPart: `Clicca qui per reimpostare la password: ${resetUrl}`,
-      HTMLPart: `<p>Clicca per reimpostare la password: <a href="${resetUrl}">${resetUrl}</a></p>`
-    }]
-  });
+// ATTENZIONE: Se non esiste, crea la cartella 'data' nella root del progetto
+const USERS_FILE = path.join(__dirname, 'data', 'users.json');
+const SECRET = 'supersecretkey'; // Usa una chiave segreta robusta in produzione
+
+// === FILE FUNCTIONS ===
+function readUsers() {
+  if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, '[]');
+  return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+}
+function writeUsers(users) {
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
-async function sendVerificationEmail(toEmail, token) {
-  const verifyUrl = `${BASE_URL}/auth/verify/${token}`;
-  return mailjet.post("send", {'version':'v3.1'}).request({
-    Messages:[{
-      From: { Email: SENDER_EMAIL, Name: SENDER_NAME },
-      To: [{ Email: toEmail }],
-      Subject: "Verifica Email — Smart Flashcards",
-      TextPart: `Clicca qui per verificare la tua email: ${verifyUrl}`,
-      HTMLPart: `<p>Clicca per verificare la tua email: <a href="${verifyUrl}">${verifyUrl}</a></p>`
-    }]
-  });
+// === MAILJET CLIENT (ATTENZIONE: CAMBIA CON LE TUE CHIAVI) ===
+const mailjet = Mailjet.apiConnect(
+  'c07a08a60161be9bafcadab355f4dc3f', // API Key pubblica
+  '07a3d302f2a173dd097be3728e4f04ce'  // API Key privata (secret)
+);
+
+function sendMail(toEmail, subject, text, html) {
+  return mailjet.post("send", {'version':'v3.1'}).request({
+    Messages: [{
+      From: { Email: "smart.flashcards@mail.com", Name: "Smart Flashcards" },
+      To: [{ Email: toEmail }],
+      Subject: subject,
+      TextPart: text,
+      HTMLPart: html
+    }]
+  });
 }
 
-// --- Gestione utenti ---
-function loadUsers() {
-  if(!fs.existsSync(usersFile)) fs.writeFileSync(usersFile, '[]');
-  return JSON.parse(fs.readFileSync(usersFile));
+// === GENERA TOKEN JWT ===
+function generateToken(user) {
+  // Inseriamo tutti i dati essenziali nel payload
+  return jwt.sign({ id: user.id, email: user.email, username: user.username }, SECRET, { expiresIn: '7d' });
 }
 
-function saveUsers(users) {
-  fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
-}
+// === REGISTRAZIONE ===
+router.post('/register', async (req, res) => {
+  const { username, email, password } = req.body;
+  const users = readUsers();
 
-// --- REGISTRAZIONE ---
-router.post('/register', async (req,res)=>{
-  const {username,email,password} = req.body;
-  if(!username||!email||!password) return res.status(400).json({error:'Campi mancanti'});
+  if (users.some(u => u.email === email)) {
+    return res.status(400).json({ error: 'Email già registrata' });
+  }
 
-  let users = loadUsers();
-  if(users.find(u=>u.email===email)) return res.status(400).json({error:'Email già registrata'});
+  const hashed = bcrypt.hashSync(password, 10);
+  const user = {
+    id: Date.now().toString(),
+    username,
+    email,
+    password: hashed,
+    verified: false
+  };
+  users.push(user);
+  writeUsers(users);
 
-  const hashed = await bcrypt.hash(password, 10);
-  const token = crypto.randomBytes(20).toString('hex');
-  const newUser = {
-    id:Date.now(),
-    username,
-    email,
-    password:hashed,
-    verified:false,
-    verifyToken:token,
-    resetToken:null,
-    resetExpire:null
-  };
-  users.push(newUser);
-  saveUsers(users);
+  // ATTENZIONE: Cambia l'URL base con il tuo dominio Render.com definitivo
+  const verifyLink = `https://smart-flashcards-app.onrender.com/auth/verify/${user.id}`;
+  await sendMail(email, 
+    "Verifica Email — Smart Flashcards", 
+    `Clicca qui per verificare la tua email: ${verifyLink}`, 
+    `<p>Clicca per verificare la tua email: <a href="${verifyLink}">${verifyLink}</a></p>`
+  );
 
-  try {
-    await sendVerificationEmail(email, token);
-    res.json({message:'Registrazione completata! Controlla la tua email per verificare l\'account.'});
-  } catch(err) {
-    console.error('Errore invio email verifica:', err);
-    res.status(500).json({error:'Errore invio email verifica'});
-  }
+  res.json({ message: 'Registrazione completata. Controlla la tua email per confermare.' });
 });
 
-// --- VERIFICA EMAIL ---
-router.get('/verify/:token', (req,res)=>{
-  const {token} = req.params;
-  let users = loadUsers();
-  const user = users.find(u=>u.verifyToken===token);
-  if(!user) return res.send('Token non valido o scaduto');
-  user.verified = true;
-  user.verifyToken = null;
-  saveUsers(users);
-  res.send('Email verificata! Ora puoi fare login.');
+// === VERIFICA EMAIL ===
+router.get('/verify/:id', (req,res) => {
+  const users = readUsers();
+  const user = users.find(u => u.id === req.params.id);
+  if (!user) return res.status(400).send('Utente non trovato.');
+  user.verified = true;
+  writeUsers(users);
+  res.send('✅ Email verificata! Ora puoi accedere.');
 });
 
-// --- LOGIN ---
-router.post('/login', async (req,res)=>{
-  const {email,password} = req.body;
-  let users = loadUsers();
-  const user = users.find(u=>u.email===email);
-  if(!user) return res.status(400).json({error:'Email non registrata'});
-  if(!user.verified) return res.status(400).json({error:'Email non verificata'});
+// === LOGIN (MODIFICATO per restituire il token) ===
+router.post('/login', (req,res) => {
+  const { email, password } = req.body;
+  const users = readUsers();
+  const user = users.find(u => u.email === email);
+  if (!user) return res.status(400).json({ error: 'Utente non trovato' });
+  if (!bcrypt.compareSync(password, user.password)) return res.status(400).json({ error: 'Password errata' });
+  if (!user.verified) return res.status(400).json({ error: 'Email non verificata' });
 
-  const ok = await bcrypt.compare(password, user.password);
-  if(!ok) return res.status(400).json({error:'Password errata'});
-
-  const token = jwt.sign({ id: user.id, username: user.username, email: user.email }, JWT_SECRET, { expiresIn: JWT_EXPIRE });
-  res.json({user:{id:user.id,username:user.username,email:user.email}, token});
+  const token = generateToken(user);
+  
+  // Restituisce il token al frontend per salvarlo in localStorage
+  res.json({ message: 'Login riuscito', token: token }); 
 });
 
-// --- RECUPERO PASSWORD ---
-router.post('/forgot', async (req,res)=>{
-  const {email} = req.body;
-  let users = loadUsers();
-  const user = users.find(u=>u.email===email);
-  if(!user) return res.status(400).json({error:'Email non registrata'});
-
-  const token = crypto.randomBytes(20).toString('hex');
-  user.resetToken = token;
-  user.resetExpire = Date.now()+3600000; // 1 ora
-  saveUsers(users);
-
-  try {
-    await sendResetEmail(email, token);
-    res.json({message:'Email inviata per reimpostare la password'});
-  } catch(err) {
-    console.error('Errore invio reset email:', err);
-    res.status(500).json({error:'Errore invio email'});
-  }
+// === LOGOUT (MODIFICATO per operare lato client) ===
+router.post('/logout', (req,res) => {
+  // La pulizia effettiva del token avviene lato client (localStorage). 
+  // Questa risposta serve solo per confermare l'operazione.
+  res.json({ message: 'Logout eseguito' });
 });
 
-// --- RESET PASSWORD ---
-router.post('/reset/:token', async (req,res)=>{
-  const {token} = req.params;
-  const {password} = req.body;
-  let users = loadUsers();
-  const user = users.find(u => u.resetToken === token && u.resetExpire > Date.now());
-  if(!user) return res.status(400).json({error:'Token non valido o scaduto'});
-  user.password = await bcrypt.hash(password,10);
-  user.resetToken = null;
-  user.resetExpire = null;
-  saveUsers(users);
-  res.json({message:'Password aggiornata! Ora puoi fare login.'});
+// === RESET PASSWORD: INVIO EMAIL ===
+router.post('/forgot', async (req,res) => {
+  const { email } = req.body;
+  const users = readUsers();
+  const user = users.find(u => u.email === email);
+  if (!user) return res.status(400).json({ error: 'Utente non trovato' });
+
+  const resetToken = jwt.sign({ id: user.id }, SECRET, { expiresIn: '1h' });
+  // ATTENZIONE: Cambia l'URL base con il tuo dominio Render.com definitivo
+  const resetLink = `https://smart-flashcards-app.onrender.com/auth/reset/${resetToken}`; 
+  await sendMail(email, 
+    "Recupero password — Smart Flashcards", 
+    `Clicca qui per reimpostare la password: ${resetLink}`,
+    `<p>Clicca per reimpostare la password: <a href="${resetLink}">${resetLink}</a></p>`
+  );
+  res.json({ message: 'Email di recupero inviata' });
+});
+
+// === RESET PASSWORD: NUOVA PASSWORD ===
+router.post('/reset/:token', (req,res) => {
+  const { password } = req.body;
+  try {
+    const decoded = jwt.verify(req.params.token, SECRET);
+    const users = readUsers();
+    const user = users.find(u => u.id === decoded.id);
+    if (!user) return res.status(400).json({ error: 'Utente non trovato' });
+    user.password = bcrypt.hashSync(password, 10);
+    writeUsers(users);
+    res.json({ message: 'Password aggiornata con successo' });
+  } catch {
+    res.status(400).json({ error: 'Token non valido o scaduto' });
+  }
 });
 
 module.exports = router;
