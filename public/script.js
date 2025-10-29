@@ -11,6 +11,7 @@ function el(tag, cls) { const e=document.createElement(tag); if(cls) e.className
 function show(el) { el.classList.remove('hidden'); }
 function hide(el) { el.classList.add('hidden'); }
 function escapeHtml(s){return (s+'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function getCheckboxState() { return qs('#alignNumbers')?.checked || false; } // Nuova funzione
 
 function msg(text,type='warn'){
   const area=qs('#message');
@@ -56,10 +57,8 @@ qs('#formLogin').onsubmit=async e=>{
   if(!r.ok) return alert(data.error||'Errore login');
   
   // Controllo essenziale dopo login
-  if (data.message === 'Login riuscito') {
-    currentUser = data.user; // Assicurati che il backend ritorni l'oggetto user, altrimenti usa l'autologin per prenderlo.
-    // Il tuo backend auth.js non ritorna l'oggetto user, usiamo il token
-    localStorage.setItem('token', data.token); // Assicurati che il backend ritorni il token
+  if (data.token) {
+    localStorage.setItem('token', data.token);
     
     // Esegui autologin per prendere i dati utente
     const userCheck = await fetch('/auth/me', { headers: { Authorization: `Bearer ${data.token}` } });
@@ -71,6 +70,8 @@ qs('#formLogin').onsubmit=async e=>{
       alert('Login riuscito ma non posso caricare i dati utente. Riprova.');
       localStorage.removeItem('token');
     }
+  } else {
+    alert(data.error || 'Errore login, nessun token ricevuto.');
   }
 };
 
@@ -198,15 +199,28 @@ async function openList(l){
   currentList=l;
   qs('#listTitle').value=l.name;
   const data=await api(`/api/lists/${l.id}`);
-  qs('#box1').value=data.front.map((line, i) => `${i+1}. ${line}`).join('\n');
-  qs('#box2').value=data.back.map((line, i) => `${i+1}. ${line}`).join('\n');
+  // Riporta i dati senza numerazione per rispettare la struttura DB
+  qs('#box1').value=data.front.join('\n'); 
+  qs('#box2').value=data.back.join('\n');
+  
+  // Applica subito la numerazione e genera le carte
+  updateBoxNumbers(qs('#box1'));
+  updateBoxNumbers(qs('#box2'));
   generateCards();
 }
 
+// === LOGICA AGGIORNATA PER L'ALLINEAMENTO ===
 function splitLines(text){
-  // Rimuove i numeri iniziali se ci sono (es. "1. Testo")
-  return text.split(/\n+/)
-             .map(l => l.trim().replace(/^\d+\.\s*/, ''))
+  const lines = text.split(/\n/);
+  
+  // Se il flag di allineamento è attivo, manteniamo le righe vuote e i numeri, 
+  // ma rimuoviamo la numerazione esplicita per avere solo il contenuto.
+  if (getCheckboxState()) {
+    return lines.map(l => l.trim().replace(/^\d+\.\s*/, ''));
+  }
+  
+  // Comportamento predefinito: filtra le righe vuote e rimuovi la numerazione
+  return lines.map(l => l.trim().replace(/^\d+\.\s*/, ''))
              .filter(Boolean);
 }
 
@@ -218,26 +232,33 @@ function deleteCardAndLines(cardElement, index) {
   // 2. Prendi il contenuto grezzo dei box
   let box1Content = qs('#box1').value.split('\n');
   let box2Content = qs('#box2').value.split('\n');
+  
+  // Otteniamo gli array delle righe che verranno usate per generare le carte
+  const effectiveLines1 = splitLines(qs('#box1').value);
+  const effectiveLines2 = splitLines(qs('#box2').value);
 
-  // 3. Trova le linee che NON sono vuote per entrambi i box per trovare l'indice corretto
-  let actualIndex1 = -1;
+  if (index >= effectiveLines1.length || index >= effectiveLines2.length) return;
+
+  // Trova l'indice della riga da rimuovere nell'array *originale* del box
   let lineToRemove1 = -1;
+  let currentEffectiveIndex1 = -1;
   for(let i=0; i<box1Content.length; i++) {
-    if(box1Content[i].trim() !== '') {
-      actualIndex1++;
-      if(actualIndex1 === index) {
+    // Verifica se la riga corrente contribuisce alle "effectiveLines"
+    if (box1Content[i].trim() !== '') {
+      currentEffectiveIndex1++;
+      if (currentEffectiveIndex1 === index) {
         lineToRemove1 = i;
         break;
       }
     }
   }
 
-  let actualIndex2 = -1;
   let lineToRemove2 = -1;
+  let currentEffectiveIndex2 = -1;
   for(let i=0; i<box2Content.length; i++) {
-    if(box2Content[i].trim() !== '') {
-      actualIndex2++;
-      if(actualIndex2 === index) {
+    if (box2Content[i].trim() !== '') {
+      currentEffectiveIndex2++;
+      if (currentEffectiveIndex2 === index) {
         lineToRemove2 = i;
         break;
       }
@@ -252,22 +273,54 @@ function deleteCardAndLines(cardElement, index) {
   qs('#box1').value = box1Content.join('\n');
   qs('#box2').value = box2Content.join('\n');
   
-  // 6. Rigenere le flashcards per ricalcolare gli indici
+  // 6. Ricalcola la numerazione e rigenera le flashcards
+  updateBoxNumbers(qs('#box1'));
+  updateBoxNumbers(qs('#box2'));
   generateCards(); 
 }
 
 // === GENERATORE FLASHCARDS ===
 function generateCards(){
-  const t1 = qs('#box1').value.trim();
-  const t2 = qs('#box2').value.trim();
-  if (!t1 || !t2) { msg('Inserisci testo in entrambi i box.'); return; }
-
+  const t1 = qs('#box1').value;
+  const t2 = qs('#box2').value;
+  
+  // Usiamo la splitLines aggiornata
   let arr1 = splitLines(t1);
   let arr2 = splitLines(t2);
+  
+  // Se la modalità Allinea è attiva, filtra le righe vuote in modo che non vengano generate carte per esse.
+  // Questo è necessario perché splitLines ritorna le righe vuote se il checkbox è spuntato.
+  if (getCheckboxState()) {
+    // Troviamo la lunghezza massima effettiva, ignorando le righe che sono vuote in entrambi i box
+    const maxLen = Math.max(arr1.length, arr2.length);
+    
+    const effectiveCards = [];
+    for (let i = 0; i < maxLen; i++) {
+      const f = arr1[i] || '';
+      const b = arr2[i] || '';
+      // Genera carta solo se ALMENO uno dei due lati non è vuoto.
+      if (f.trim() !== '' || b.trim() !== '') {
+        effectiveCards.push({front: f, back: b, sourceIndex: i});
+      }
+    }
+    arr1 = effectiveCards.map(c => c.front);
+    arr2 = effectiveCards.map(c => c.back);
 
-  if (arr1.length !== arr2.length) {
-    msg(`Attenzione: numero di righe diverso! Fronte: ${arr1.length}, Retro: ${arr2.length}`);
+    // Messaggio di avviso solo se la lunghezza dei *contenuti* non corrisponde
+    if (arr1.length !== arr2.length) {
+      msg(`Attenzione: numero di flashcards generate diverso! Fronte: ${arr1.length}, Retro: ${arr2.length}. Controlla le righe vuote.`);
+    } else {
+      msg('');
+    }
+  } else {
+    // Comportamento predefinito: controlla la lunghezza dei risultati filtrati
+    if (arr1.length !== arr2.length) {
+      msg(`Attenzione: numero di righe con contenuto diverso! Fronte: ${arr1.length}, Retro: ${arr2.length}`);
+    } else {
+      msg('');
+    }
   }
+
 
   const n = Math.min(arr1.length, arr2.length);
   const cards = qs('#cards');
@@ -289,15 +342,20 @@ function generateCards(){
     // Click per girare la carta
     c.querySelector('.card-inner').onclick = () => c.classList.toggle('flipped');
 
-    // Click su X per cancellare la carta e la riga corrispondente nei box (usa la funzione FIX)
+    // Click su X per cancellare la carta e la riga corrispondente (usa la funzione FIX)
     c.querySelector('.delCard').onclick = (e) => {
       e.stopPropagation(); // evita flip
-      deleteCardAndLines(c, i);
+      deleteCardAndLines(c, i); // Passa l'indice della carta generata
     };
 
     cards.appendChild(c);
   }
-  msg('');
+  if (n === 0 && (t1.trim() || t2.trim())) msg('Nessuna carta generata. Controlla che i box non siano vuoti o che le righe abbiano corrispondenza.');
+  else if (!getCheckboxState() && arr1.length !== arr2.length) {
+    // Mantieni il messaggio di avviso se le lunghezze non corrispondono in modalità predefinita
+  } else if (n > 0) {
+    msg(''); // Pulisce i messaggi di avviso precedenti se ha successo
+  }
 }
 
 // === BOTTONE GENERA / PREVIEW / RESET ===
@@ -312,12 +370,31 @@ qs('#btnResetCards').onclick = () => {
 qs('#btnSaveList').onclick=async()=>{
   if(!currentFolder) return alert('Seleziona una cartella');
   const name=qs('#listTitle').value.trim()||'Senza nome';
-  const front=splitLines(qs('#box1').value);
-  const back=splitLines(qs('#box2').value);
+  // Al salvataggio usiamo la funzione splitLines in modalità predefinita (senza allineamento)
+  // per salvare solo le righe con contenuto.
+  // Passiamo false per forzare il comportamento predefinito
+  const front = qs('#box1').value.split(/\n+/).map(l => l.trim().replace(/^\d+\.\s*/, '')).filter(Boolean);
+  const back = qs('#box2').value.split(/\n+/).map(l => l.trim().replace(/^\d+\.\s*/, '')).filter(Boolean);
+
+  if(front.length !== back.length) {
+    if (!confirm(`Attenzione! I lati Fronte (${front.length}) e Retro (${back.length}) hanno un numero di contenuti diverso. Vuoi salvare comunque solo i contenuti allineati?`)) {
+      return;
+    }
+  }
+  
+  // Limita la lunghezza al minimo per il salvataggio
+  const n = Math.min(front.length, back.length);
+  
+  const payload = {
+    name,
+    front: front.slice(0, n),
+    back: back.slice(0, n)
+  };
+  
   if(currentList)
-    await api(`/api/lists/${currentList.id}`,'PUT',{name,front,back});
+    await api(`/api/lists/${currentList.id}`,'PUT', payload);
   else {
-    const newList = await api(`/api/folders/${currentFolder.id}/lists`,'POST',{name,front,back});
+    const newList = await api(`/api/folders/${currentFolder.id}/lists`,'POST', payload);
     currentList = newList; // Imposta la lista corrente
   }
   alert('Lista salvata!');
@@ -378,11 +455,27 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   // Funzione di utilità per numerazione
   function updateBoxNumbers(box){
-    const lines = box.value.split('\n').map(l => l.trim().replace(/^\d+\.\s*/, '')).filter(Boolean);
-    box.value = lines.map((line,i) => `${i+1}. ${line}`).join('\n');
+    // Conserva tutte le righe, anche quelle vuote, per non perdere la spaziatura
+    const lines = box.value.split('\n');
+    let counter = 1;
+    
+    box.value = lines.map(line => {
+      // Pulisce la riga da numerazione precedente (es. "1. Testo" -> "Testo")
+      const content = line.trim().replace(/^\d+\.\s*/, ''); 
+      
+      if (content === '') {
+        return ''; // Mantiene la riga vuota
+      } else {
+        return `${counter++}. ${content}`;
+      }
+    }).join('\n');
   }
+  
+  // Applica quando l'utente esce dal box e rigenera le carte per aggiornare la visualizzazione
+  qs('#box1').addEventListener('blur', ()=>{ updateBoxNumbers(qs('#box1')); generateCards(); });
+  qs('#box2').addEventListener('blur', ()=>{ updateBoxNumbers(qs('#box2')); generateCards(); });
+  
+  // Rigenera le carte ogni volta che si cambia lo stato del checkbox
+  qs('#alignNumbers').addEventListener('change', generateCards);
 
-  // Applica quando l'utente esce dal box
-  qs('#box1').addEventListener('blur', ()=>updateBoxNumbers(qs('#box1')));
-  qs('#box2').addEventListener('blur', ()=>updateBoxNumbers(qs('#box2')));
 });
