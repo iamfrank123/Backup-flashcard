@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const authRoutes = require('./auth'); // importa il file auth.js
+const authRoutes = require('./auth.cjs'); // importa il file auth.cjs
 
 const app = express();
 const server = http.createServer(app);
@@ -155,3 +155,4 @@ io.on('connection', socket => {
 
 // === AVVIO SERVER ===
 server.listen(PORT, () => console.log(`✅ Server avviato su http://localhost:${PORT}`));
+
